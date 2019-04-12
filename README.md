@@ -5,9 +5,9 @@ IS590PR Spring 2019.
 **Bus Transit Simulation With Focus On Clumping Reduction**
 
 ## Team
-Dhruman Shah github: *dhruman-shah*
-Pranay Parmar github: *pranayparmar*
-Sarvani Putta github: *sarvaniputta*
+- Dhruman Shah github: *dhruman-shah*
+- Pranay Parmar github: *pranayparmar*
+- Sarvani Putta github: *sarvaniputta*
 
 ## Background
 Bus transit systems often face the problem of clumping where buses that are scheduled to be equally spaced in time tend to arrive at a stop at the same time.
