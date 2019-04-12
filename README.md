@@ -2,7 +2,7 @@
 IS590PR Spring 2019.
 
 ## Project Title
-**Bus Transit Simulation with Focus On Clumping Reduction**
+**Bus Transit Simulation With Focus On Clumping Reduction**
 
 ## Team
 Dhruman Shah github: *dhruman-shah*
@@ -20,4 +20,7 @@ is reduced.
 1) *Stopping for a minimum time at every stop irrespective of passenger presence reduces clumping.* The idea is buses behind delayed buses do not rush ahead due to lack of onboarding passengers
 
 2) *Overtaking a delayed bus reduces clumping.* The idea is by letting the faster bus pick up passengers at the next stop and reducing the onboarding delay on the next bus.
+
+## Git URL
+https://github.com/sarvaniputta/Final_Project
 
