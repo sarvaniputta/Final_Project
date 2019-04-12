@@ -21,8 +21,11 @@ is reduced.
 
 2) *Overtaking a delayed bus reduces clumping.* The idea is by letting the faster bus pick up passengers at the next stop and reducing the onboarding delay on the next bus.
 
-3) If the above hypothesis are valid Solution 1 will perform better (either in terms of number of bus bunching scenarios over the simulation time frame, or time elapsed before first bunching occurs) than Solution 2.
+3) If the above hypotheses are valid, *Solution 1* will perform better (either in terms of number of bus bunching scenarios over the simulation time frame, or time elapsed before first bunching occurs) than *Solution 2.*
 
 ## Git URL
 https://github.com/sarvaniputta/Final_Project
+
+## References
+https://en.wikipedia.org/wiki/Bus_bunching
 
