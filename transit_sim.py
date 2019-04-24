@@ -117,7 +117,7 @@ class TransitSystem:
                           for a in range(0, nstops)]
         self.buses = [Bus(i, nstops) for i in range(nbuses)]
         self.nstops = nstops
-        self.headway = headway
+        self.headway = min(headway, 60/nbuses)
 
 
     @staticmethod
@@ -194,7 +194,7 @@ class TransitSystem:
 
 
 if __name__ == '__main__':
-    model = TransitSystem(overtaking_allowed=True)
+    model = TransitSystem(nbuses = 6, headway=10,overtaking_allowed=True)
     model.simulate()
     print(model.stops[0].arrival_times)
     print(model.stops[0].departure_times)
