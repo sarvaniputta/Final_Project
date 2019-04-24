@@ -44,8 +44,8 @@ class Bus:
         self.time_for_next_stop = None # clock time at which bus hits next stop
         self.trip_count = 0 # counter for the current trip
 
-    def space_available(self) -> bool:
-        return sum(self.passengers_onboard.values()) < self.capacity
+    def space_available(self):
+        return self.capacity - sum(self.passengers_onboard.values())
 
     def board_passengers(self, bus_stop):
         if self.space_available():
@@ -72,9 +72,10 @@ class BusStop:
         self.arrival_times = []
         self.departure_times = []
 
-    def new_passengers_at_stop(self, start, end):
-        """ Number of passengers arriving to that bus stop with in a time interval"""
-        return np.random.poisson(self.passenger_arrival_rate * (end - start))
+    def passengers_at_stop(self, start, end):
+        """ Existing plus number of new passengers arriving to that bus stop with in a time interval"""
+        self.passengers_waiting += np.random.poisson(self.passenger_arrival_rate * (end - start))
+        return self.passengers_waiting
 
     def passenger_destinations(self, num_passengers_boarding, total_stops):
         """ Number of passengers getting down in the further bus stops"""
@@ -111,7 +112,7 @@ class BusLane:
 class TransitSystem:
 
     def __init__(self, nstops=4, nbuses=4, headway=15, overtaking_allowed=False):
-        self.stops = [BusStop(i) for i in range(nstops)]
+        self.stops = [BusStop(i, passenger_arrival_rate=0.4) for i in range(nstops)]
         self.bus_lanes = [BusLane(a, from_stop=a, to_stop=(a + 1) % nstops, overtaking_allowed=overtaking_allowed)
                           for a in range(0, nstops)]
         self.buses = [Bus(i, nstops) for i in range(nbuses)]
@@ -122,8 +123,7 @@ class TransitSystem:
     @staticmethod
     def dwell(passengers_board, passengers_alight):
         """Total dwell time at each stop. Assuming it to be 0.1min for onboarding and alighting"""
-        # return ((passengers_board + passengers_alight) * 0.05) + np.random.uniform(0, 0.1)
-        return 0.25
+        return ((passengers_board + passengers_alight) * 0.05) + np.random.uniform(0, 0.1)
 
     def arrive(self, bus, stop: BusStop, arrival_time):
         # pop the bus from the corresponding bus_lane
@@ -145,7 +145,17 @@ class TransitSystem:
         else:
             previous_arrival = arrival_time - 10
             # assume only 10 mins worth of pax at stop for the very first trip at this stop of the day
-        n_board = stop.new_passengers_at_stop(start=previous_arrival, end=arrival_time)
+
+        # Fit passengers based on space available, leave those that cannot fit
+        bus_space = bus.space_available()
+        n_board = stop.passengers_at_stop(start=previous_arrival, end=arrival_time)
+        if bus_space < n_board: # No space in bus for all passengers
+            stop.passengers_waiting -= bus_space # reduce passengers at stop by num who get in bus
+            total_boarded = bus_space
+        else:
+            stop.passengers_waiting = 0 # All passengers get in bus
+            total_boarded = n_board
+
         destination_dict = stop.passenger_destinations(n_board, total_stops=self.nstops)
         # Adding new passengers to bus dict containing stop_id and existing passengers getting down at that stop
         for k in destination_dict:
@@ -155,7 +165,7 @@ class TransitSystem:
         bus.passengers_onboard[stop.id_] = 0
 
         # time taken to alignt and onboard these passengers
-        dwell_time = self.dwell(n_board, n_alight)
+        dwell_time = self.dwell(total_boarded, n_alight)
 
         # update arrival time list at stop
         stop.arrival_times.append(arrival_time)
@@ -184,11 +194,10 @@ class TransitSystem:
 
 
 if __name__ == '__main__':
-    model = TransitSystem(overtaking_allowed=False)
+    model = TransitSystem(overtaking_allowed=True)
     model.simulate()
     print(model.stops[0].arrival_times)
     print(model.stops[0].departure_times)
-
 
 
 
