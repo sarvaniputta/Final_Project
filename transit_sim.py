@@ -27,6 +27,7 @@ Usage:
 
 import numpy as np
 import queue
+import matplotlib.pyplot as plt
 
 
 class Bus:
@@ -112,7 +113,7 @@ class BusLane:
 class TransitSystem:
 
     def __init__(self, nstops=4, nbuses=4, headway=15, overtaking_allowed=False):
-        self.stops = [BusStop(i, passenger_arrival_rate=0.4) for i in range(nstops)]
+        self.stops = [BusStop(i, passenger_arrival_rate=0.3) for i in range(nstops)]
         self.bus_lanes = [BusLane(a, from_stop=a, to_stop=(a + 1) % nstops, overtaking_allowed=overtaking_allowed)
                           for a in range(0, nstops)]
         self.buses = [Bus(i, nstops) for i in range(nbuses)]
@@ -192,16 +193,62 @@ class TransitSystem:
             to_stop = self.stops[(earliest_event_bus.prev_stop + 1) % self.nstops]
             self.arrive(earliest_event_bus, to_stop, earliest_event_bus.time_for_next_stop)
 
+    def print_stats(self):
+        bunches = []
+        for stop in self.stops:
+            arrival_times = np.array(stop.arrival_times)
+            bus_time_diff = np.diff(arrival_times)
+            num_bunch_events = np.count_nonzero(bus_time_diff <= 2.0)
+            bunches.append(num_bunch_events)
+        return np.mean(bunches)
+
+
+def draw_histogram(num_bunch_list, title, color='#c91829'):
+    plt.style.use('fivethirtyeight')
+    plt.hist(num_bunch_list, alpha=0.8, color=color, edgecolor='black')
+    plt.xlabel('Number of bunches')
+    plt.ylabel('Frequency')
+    plt.title(title)
+    plt.xticks(np.arange(0, 20, step=2.0))
+    plt.rcParams["figure.dpi"] = 600
+    plt.show()
+
+
+def draw_lineplot(num_bunch_list, title, color='#c91829'):
+    plt.style.use('fivethirtyeight')
+    plt.plot(num_bunch_list, alpha=0.8, color=color, linewidth=1.3)
+    plt.axhline(np.mean(num_bunch_list), color='#13294a', linewidth=2.0, alpha=0.85, label='Mean bunches')
+    plt.xlabel('Simulation number')
+    plt.ylabel('Number of bunches')
+    plt.yticks(np.arange(0, 20, step=2.0))
+    plt.title(title)
+    plt.rcParams["figure.dpi"] = 600
+    plt.show()
+
 
 if __name__ == '__main__':
-    model = TransitSystem(nbuses = 6, headway=10,overtaking_allowed=True)
-    model.simulate()
-    print(model.stops[0].arrival_times)
-    print(model.stops[0].departure_times)
+    mean_bunches = []
+    num_of_sims = 1000
+    current_sim = 0
+    
+    while current_sim < num_of_sims:
+        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=False)
+        model.simulate()
+        mean_bunches.append(model.print_stats())
+        del model
+        current_sim += 1
+    draw_histogram(mean_bunches, 'When no reduction technique used(n=1000)')
+    draw_lineplot(mean_bunches, 'When no reduction technique used')
 
+    mean_bunches.clear()
+    current_sim = 0
 
+    while current_sim < num_of_sims:
+        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=True)
+        model.simulate()
+        mean_bunches.append(model.print_stats())
+        del model
+        current_sim += 1
 
-
-
-
-
+    draw_histogram(mean_bunches, 'When overtaking allowed (n=1000)', color='#238e7b')
+    draw_lineplot(mean_bunches, 'When overtaking allowed', color='#238e7b')
