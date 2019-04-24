@@ -29,10 +29,9 @@ import numpy as np
 import queue
 
 
-
 class Bus:
 
-    def __init__(self, bus_id, capacity=50, total_stops=4, start_stop=None):
+    def __init__(self, bus_id, total_stops, capacity=50, start_stop=None):
         self.id_ = bus_id
         self.capacity = capacity
         self.start_stop = start_stop
@@ -85,18 +84,19 @@ class BusStop:
         dict_ = {k: v for k, v in zip(keys, dist)}
         return dict_
 
-class TravelSegment:
+
+class BusLane:
     """Connector between stops that can simulate overtaking if necessary"""
 
     def __init__(self, id_, from_stop=0, to_stop=1, overtaking_allowed=False):
-        self.buses_on_route = [] # contains buses which are traversing this segment right now
+        self.buses_on_route = [] # contains buses which are traversing this lane right now
         self.from_stop = from_stop
         self.to_stop = to_stop
         self.overtaking_allowed = overtaking_allowed
         self.id = id_
 
     def traversal_time(self, start_time=None):
-        potential_travel_time =  np.random.triangular(14, 15, 18)
+        potential_travel_time = np.random.triangular(14, 15, 18)
         if self.overtaking_allowed:
             return potential_travel_time
         elif self.buses_on_route:
@@ -108,60 +108,15 @@ class TravelSegment:
             return potential_travel_time
 
 
-class BusLine:
-
-    def __init__(self, stops, intervals):
-        self.stops = stops
-        self.intervals = intervals
-
-
-class Simulation:
-
-    def __init__(self, num_buses=4, num_stops=10):
-        # start_time of clock in minutes. Can be thought to correspond to 6 AM
-        self.num_buses = num_buses
-        self.num_stops = num_stops
-        self.stops_list = [BusStop(stop_id=i, passenger_arrival_rate=0.5) for i in range(0, num_stops)]
-        self.bus_list = [Bus(bus_id=i) for i in range(0, num_buses)]
-        # initialize the buses to arrive at stop 0 at 0, 15, ..., so on intervals from garage
-        for i in range(num_buses):
-            bus = self.bus_list[i]
-            self.arrive_at_stop(bus, self.stops_list[0], time=i * 15)
-
-    def arrive_at_stop(self, bus: Bus, bus_stop: BusStop, time: float):
-        # bus has arrived at stop at time
-        # record arrival time
-        bus_stop.arrival_times.append(time)
-        # now bus stops for appropriate dwell time
-        if len(bus_stop.arrival_times) < 2:
-            start = time - 15
-        else:
-            start = bus_stop.arrival_times[-2]
-        num_boarding = bus_stop.new_passengers_at_stop(start, time)
-        num_alighting = bus.passengers_onboard[bus_stop.id_]
-        bus.passengers_onboard[bus_stop.id_] = 0  # all passengers in bus to this stop have alighted
-        bus_stop.passenger_destinations(num_boarding, bus, self.num_stops)
-        for id_ in bus.passengers_onboard:
-            bus.passengers_onboard[id_] = bus.passengers_onboard[id_] + num_alighting
-        dwell_time = bus.dwell(num_boarding, num_alighting)
-        departing_time = time + dwell_time
-        bus_stop.departure_times.append(departing_time)
-        bus.prev_stop = bus_stop.id_
-
-
 class TransitSystem:
 
-    def __init__(self, nstops=4, nbuses=4, headway=15, overtaking_allowed=False ):
+    def __init__(self, nstops=4, nbuses=4, headway=15, overtaking_allowed=False):
         self.stops = [BusStop(i) for i in range(nstops)]
-        self.segments = [TravelSegment(0, from_stop=0, to_stop=1, overtaking_allowed=overtaking_allowed),
-                         TravelSegment(1, from_stop=1, to_stop=2, overtaking_allowed=overtaking_allowed),
-                         TravelSegment(2, from_stop=2, to_stop=3, overtaking_allowed=overtaking_allowed),
-                         TravelSegment(3, from_stop=3, to_stop=0, overtaking_allowed=overtaking_allowed),]
-        self.buses = [Bus(i) for i in range(nbuses)]
+        self.bus_lanes = [BusLane(a, from_stop=a, to_stop=(a + 1) % nstops, overtaking_allowed=overtaking_allowed)
+                          for a in range(0, nstops)]
+        self.buses = [Bus(i, nstops) for i in range(nbuses)]
         self.nstops = nstops
         self.headway = headway
-
-
 
 
     @staticmethod
@@ -170,14 +125,14 @@ class TransitSystem:
         # return ((passengers_board + passengers_alight) * 0.05) + np.random.uniform(0, 0.1)
         return 0.25
 
-    def arrive(self, bus, stop:BusStop, arrival_time):
-        # pop the bus from the corresponding segment
-        for segment in self.segments:
-            if segment.to_stop == stop.id_:
+    def arrive(self, bus, stop: BusStop, arrival_time):
+        # pop the bus from the corresponding bus_lane
+        for bus_lane in self.bus_lanes:
+            if bus_lane.to_stop == stop.id_:
                 break
-        # bus can arrive at given stop only on this segment
-        if segment.buses_on_route:
-            segment.buses_on_route.remove(bus)
+        # bus can arrive at given stop only on this bus_lane
+        if bus_lane.buses_on_route:
+            bus_lane.buses_on_route.remove(bus)
 
         if stop.id_ == 0:
             bus.trip_count += 1
@@ -191,7 +146,7 @@ class TransitSystem:
             previous_arrival = arrival_time - 10
             # assume only 10 mins worth of pax at stop for the very first trip at this stop of the day
         n_board = stop.new_passengers_at_stop(start=previous_arrival, end=arrival_time)
-        destination_dict  = stop.passenger_destinations(n_board, total_stops=self.nstops)
+        destination_dict = stop.passenger_destinations(n_board, total_stops=self.nstops)
         # Adding new passengers to bus dict containing stop_id and existing passengers getting down at that stop
         for k in destination_dict:
             bus.passengers_onboard[k] = bus.passengers_onboard[k] + destination_dict[k]
@@ -208,13 +163,11 @@ class TransitSystem:
         bus.prev_stop = stop.id_
         self.travel_to_next_stop(bus, from_stop=stop, start_time=arrival_time + dwell_time)
 
-
     def travel_to_next_stop(self, bus, from_stop, start_time):
-        segment = self.segments[from_stop.id_]
-        potential_travel_time = segment.traversal_time(start_time) # takes care of overtaking as configured
+        bus_lane = self.bus_lanes[from_stop.id_]
+        potential_travel_time = bus_lane.traversal_time(start_time) # takes care of overtaking as configured
         bus.time_for_next_stop = start_time + potential_travel_time
-        segment.buses_on_route.append(bus)
-
+        bus_lane.buses_on_route.append(bus)
 
     def simulate(self, max_trips=10):
         # start simulation by making buses go to stop 0 in headway increments
@@ -230,9 +183,8 @@ class TransitSystem:
             self.arrive(earliest_event_bus, to_stop, earliest_event_bus.time_for_next_stop)
 
 
-
 if __name__ == '__main__':
-    model = TransitSystem(overtaking_allowed=True)
+    model = TransitSystem(overtaking_allowed=False)
     model.simulate()
     print(model.stops[0].arrival_times)
     print(model.stops[0].departure_times)
