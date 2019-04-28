@@ -1,0 +1,3 @@
+# List of the pip packages that must be installed for this project
+numpy
+matplotlib
