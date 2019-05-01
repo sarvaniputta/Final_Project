@@ -165,7 +165,7 @@ class TransitSystem:
         # all passengers with this stop as destination have alighted so update count
         bus.passengers_onboard[stop.id_] = 0
 
-        # time taken to alignt and onboard these passengers
+        # time taken to alight and onboard these passengers
         dwell_time = self.dwell(total_boarded, n_alight)
 
         # update arrival time list at stop
