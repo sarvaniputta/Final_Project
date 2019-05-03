@@ -25,9 +25,10 @@ Usage:
 
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
 import json
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Bus:
@@ -41,8 +42,8 @@ class Bus:
         # particular stop as their destination, initially the number of passengers is 0.
         # Sum of values is the total passengers inside the bus which is 0 initially.
         self.prev_stop = None
-        self.time_for_next_stop = None # clock time at which bus hits next stop
-        self.trip_count = 0 # counter for the current trip
+        self.time_for_next_stop = None  # clock time at which bus hits next stop
+        self.trip_count = 0  # counter for the current trip
 
     def space_available(self):
         return max(0, self.capacity - sum(self.passengers_onboard.values()))
@@ -55,7 +56,6 @@ class Bus:
         for passenger in self.passengers_onboard:
             if passenger.dest == bus_stop.stop_no:
                 self.passengers_onboard.remove(passenger)
-
 
     # def travel(self, from_id, to_id, start=None):
     #     """bus travel times between stops. Assuming it to take 20 min on average with some approxiamtion
@@ -93,7 +93,7 @@ class BusLane:
     """Connector between stops that can simulate overtaking if necessary"""
 
     def __init__(self, id_, from_stop=0, to_stop=1, overtaking_allowed=False, travel_time_dist=None):
-        self.buses_on_route = [] # contains buses which are traversing this lane right now
+        self.buses_on_route = []  # contains buses which are traversing this lane right now
         self.from_stop = from_stop
         self.to_stop = to_stop
         self.overtaking_allowed = overtaking_allowed
@@ -118,8 +118,9 @@ class BusLane:
 
 class TransitSystem:
 
-    def __init__(self, nbuses=4, headway=15, overtaking_allowed=False, travel_time_dist=[], passenger_arrival_rate=[0.3, 0.3, 0.3,0.3],
-                 dest_prob_matrix = [], maintain_headway=False):
+    def __init__(self, nbuses=4, headway=15, overtaking_allowed=False, travel_time_dist=[lambda: 16] * 4,
+                 passenger_arrival_rate=[0.3, 0.3, 0.3, 0.3],
+                 dest_prob_matrix=[[0, 0, 1, 0], [0, 0, 0, 1], [1, 0, 0, 0], [0, 1, 0, 0]], maintain_headway=False):
         self.nstops = len(passenger_arrival_rate)
         self.travel_time_dist = travel_time_dist
         self.passenger_arrival_rate = passenger_arrival_rate
@@ -132,7 +133,7 @@ class TransitSystem:
                           for a, tt in enumerate(self.travel_time_dist)]
         self.buses = [Bus(i, self.nstops) for i in range(nbuses)]
 
-        self.headway = min(headway, 60/nbuses)
+        self.headway = min(headway, 60 / nbuses)
         self.maintain_headway = maintain_headway
 
     @staticmethod
@@ -154,9 +155,9 @@ class TransitSystem:
 
         n_alight = bus.passengers_onboard[stop.id_]
         # how many passengers are waiting
-            # before we get there we need how much time elapsed since previous bus picked up passengers
-        if stop.arrival_times: # there was atleast one bus pick up here (only false at the start of the simulation)
-            previous_arrival = stop.arrival_times[-1] # latest arrival
+        # before we get there we need how much time elapsed since previous bus picked up passengers
+        if stop.arrival_times:  # there was atleast one bus pick up here (only false at the start of the simulation)
+            previous_arrival = stop.arrival_times[-1]  # latest arrival
         else:
             previous_arrival = arrival_time - 10
             # assume only 10 mins worth of pax at stop for the very first trip at this stop of the day
@@ -164,11 +165,11 @@ class TransitSystem:
         # Fit passengers based on space available, leave those that cannot fit
         bus_space = bus.space_available()
         n_board = stop.passengers_at_stop(start=previous_arrival, end=arrival_time)
-        if bus_space < n_board: # No space in bus for all passengers
-            stop.passengers_waiting -= bus_space # reduce passengers at stop by num who get in bus
+        if bus_space < n_board:  # No space in bus for all passengers
+            stop.passengers_waiting -= bus_space  # reduce passengers at stop by num who get in bus
             total_boarded = bus_space
         else:
-            stop.passengers_waiting = 0 # All passengers get in bus
+            stop.passengers_waiting = 0  # All passengers get in bus
             total_boarded = n_board
 
         destination_dict = stop.passenger_destinations(n_board)
@@ -180,7 +181,7 @@ class TransitSystem:
         bus.passengers_onboard[stop.id_] = 0
 
         # time taken to alight and onboard these passengers
-        #dwell_time = self.dwell(total_boarded, n_alight)
+        # dwell_time = self.dwell(total_boarded, n_alight)
         actual_time = self.dwell(total_boarded, n_alight)
         # If maintain_headway is enabled, whenever the inter-arrival time is less than headway gap,
         # the following bus will wait at the stop to restore the headway gap.
@@ -189,9 +190,7 @@ class TransitSystem:
                 dwell_time = actual_time
             else:
                 time_diff = arrival_time - stop.arrival_times[-1]
-                dwell_time = min(0.1*self.headway, max(self.headway-time_diff, actual_time))
-
-
+                dwell_time = min(0.1 * self.headway, max(self.headway - time_diff, actual_time))
 
                 # dwell_time = self.headway if time_diff < self.headway else actual_time
         else:
@@ -205,11 +204,21 @@ class TransitSystem:
 
     def travel_to_next_stop(self, bus, from_stop, start_time):
         bus_lane = self.bus_lanes[from_stop.id_]
-        potential_travel_time = bus_lane.traversal_time(start_time) # takes care of overtaking as configured
+        potential_travel_time = bus_lane.traversal_time(start_time)  # takes care of overtaking as configured
         bus.time_for_next_stop = start_time + potential_travel_time
         bus_lane.buses_on_route.append(bus)
 
     def simulate(self, max_trips=10):
+
+        """ Run simulations until 1 bus in the system completes max trips.
+        >>> model = TransitSystem(nbuses=1)
+        >>> model.simulate(max_trips=4) # with one trip no bunches should occur
+        >>> all([len(s.arrival_times)<=4  for s in model.stops])
+        True
+
+
+
+        """
         # start simulation by making buses go to stop 0 in headway increments
         for bus in self.buses:
             self.arrive(bus, self.stops[0], arrival_time=bus.id_ * self.headway)
@@ -223,6 +232,17 @@ class TransitSystem:
             self.arrive(earliest_event_bus, to_stop, earliest_event_bus.time_for_next_stop)
 
     def get_stats(self):
+        """ Obtain statistics on passengers waiting and number of bunching situations occurred after the simulations are run.
+        >>> model = TransitSystem()
+        >>> model.simulate(max_trips=1) # with one trip no bunches should occur
+        >>> stats = model.get_stats()
+        >>> stats['avg_bunches']  == 0  #No bunches because of constant travel time.
+        True
+        >>> stats['avg_passenger_waiting']>0
+        True
+
+        """
+
         bunches = []
         num_passengers = []
         for stop in self.stops:
@@ -235,6 +255,12 @@ class TransitSystem:
 
 
 def draw_histogram(num_bunch_list, title, color='#c91829'):
+    """
+        Draw a plot showing distribution of mean bunches across the simulation runs.
+        :param num_bunch_list: List of mean bunches observed across simulation runs.
+        :param title: Title to be used displayed on the plot
+        :param color: Color of the line.
+    """
     plt.rcParams["figure.dpi"] = 200
     plt.style.use('fivethirtyeight')
     plt.hist(num_bunch_list, alpha=0.8, color=color, edgecolor='black')
@@ -246,13 +272,21 @@ def draw_histogram(num_bunch_list, title, color='#c91829'):
 
 
 def draw_lineplot(num_bunch_list, num_pass_waiting, title, color='#c91829'):
+    """
+    Draw a plot showing number of bunches across the simulation runs.
+    :param num_bunch_list: List of mean bunches observed across simulation runs.
+    :param num_pass_waiting: List of passengers waiting across simulation runs
+    :param title: Title to be used displayed on the plot
+    :param color: Color of the line.
+
+    """
     plt.rcParams["figure.dpi"] = 200
     plt.style.use('fivethirtyeight')
     plt.plot(num_bunch_list, alpha=0.8, color=color, linewidth=1.3)
     plt.axhline(np.mean(num_bunch_list), color='#13294a', linewidth=2.0, alpha=0.85, label='Mean bunches')
     plt.xlabel('Simulation number')
     plt.ylabel('Number of bunches')
-    #plt.yticks(np.arange(0, 28, step=2.0))
+    # plt.yticks(np.arange(0, 28, step=2.0))
     plt.title(title)
     plt.text(0.05, 0.95, 'Avg. passengers queue length = ' + str(np.mean(num_pass_waiting).round(2)),
              fontsize=14, transform=plt.gcf().transFigure)
@@ -299,7 +333,15 @@ def travel_time_callable(icdf):
     return lambda: simulate_empirical(icdf)
 
 
-def test_hypothesis(num_of_sims=1000, overtaking_allowed=False, maintain_headway=False):
+def test_hypothesis(num_of_sims: int = 1000, overtaking_allowed: bool = False, maintain_headway: bool = False) -> list:
+    """
+    Runs simulations with the given strategies to test hypothesis
+    :param num_of_sims: Number of simulation runs to compute stats
+    :param overtaking_allowed: Boolean that toggles if buses can overtake each other on the route.
+    :param maintain_headway: Boolean that toggles if buses can wait at stops to maintain headway.
+    :return: list of the total number of bunches observed across all the simulation runs.
+    """
+
     current_sim = 0
     mean_passengers_waiting = []
     mean_bunches = []
@@ -331,7 +373,6 @@ def test_hypothesis(num_of_sims=1000, overtaking_allowed=False, maintain_headway
 
 
 if __name__ == '__main__':
-
     mean_bunches_baseline, mean_pass_list = test_hypothesis()
 
     mean_bunches_hyp1, mean_pass_list1 = test_hypothesis(overtaking_allowed=True)
