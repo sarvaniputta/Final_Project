@@ -28,11 +28,12 @@ Usage:
 import numpy as np
 import queue
 import matplotlib.pyplot as plt
+import json
 
 
 class Bus:
 
-    def __init__(self, bus_id, total_stops, capacity=50, start_stop=None):
+    def __init__(self, bus_id, total_stops, capacity=500, start_stop=None):
         self.id_ = bus_id
         self.capacity = capacity
         self.start_stop = start_stop
@@ -46,7 +47,7 @@ class Bus:
         self.trip_count = 0 # counter for the current trip
 
     def space_available(self):
-        return self.capacity - sum(self.passengers_onboard.values())
+        return max(0, self.capacity - sum(self.passengers_onboard.values()))
 
     def board_passengers(self, bus_stop):
         if self.space_available():
@@ -66,7 +67,8 @@ class Bus:
 
 class BusStop:
 
-    def __init__(self, stop_id, passenger_arrival_rate=0.1):
+    def __init__(self, stop_id, passenger_arrival_rate=0.1, dest_prob=None):
+        self.dest_prob = dest_prob
         self.id_ = stop_id
         self.passenger_arrival_rate = passenger_arrival_rate
         self.passengers_waiting = 0
@@ -78,10 +80,10 @@ class BusStop:
         self.passengers_waiting += np.random.poisson(self.passenger_arrival_rate * (end - start))
         return self.passengers_waiting
 
-    def passenger_destinations(self, num_passengers_boarding, total_stops):
+    def passenger_destinations(self, num_passengers_boarding):
         """ Number of passengers getting down in the further bus stops"""
-        keys = [stop_id for stop_id in range(total_stops) if stop_id != self.id_]
-        dist = np.random.multinomial(num_passengers_boarding, np.ones(total_stops - 1) / (total_stops - 1))
+        keys = [stop_id for stop_id in range(len(self.dest_prob)) if stop_id != self.id_]
+        dist = np.random.multinomial(num_passengers_boarding, self.dest_prob)
         # all destinations equally likely
         dict_ = {k: v for k, v in zip(keys, dist)}
         return dict_
@@ -90,15 +92,19 @@ class BusStop:
 class BusLane:
     """Connector between stops that can simulate overtaking if necessary"""
 
-    def __init__(self, id_, from_stop=0, to_stop=1, overtaking_allowed=False):
+    def __init__(self, id_, from_stop=0, to_stop=1, overtaking_allowed=False, travel_time_dist=None):
         self.buses_on_route = [] # contains buses which are traversing this lane right now
         self.from_stop = from_stop
         self.to_stop = to_stop
         self.overtaking_allowed = overtaking_allowed
+        self.travel_time_dist = travel_time_dist
         self.id = id_
 
     def traversal_time(self, start_time=None):
-        potential_travel_time = np.random.triangular(14, 15, 18)
+        if self.travel_time_dist:
+            potential_travel_time = self.travel_time_dist()
+        else:
+            potential_travel_time = np.random.triangular(14, 15, 18)
         if self.overtaking_allowed:
             return potential_travel_time
         elif self.buses_on_route:
@@ -112,12 +118,20 @@ class BusLane:
 
 class TransitSystem:
 
-    def __init__(self, nstops=4, nbuses=4, headway=15, overtaking_allowed=False):
-        self.stops = [BusStop(i, passenger_arrival_rate=0.3) for i in range(nstops)]
-        self.bus_lanes = [BusLane(a, from_stop=a, to_stop=(a + 1) % nstops, overtaking_allowed=overtaking_allowed)
-                          for a in range(0, nstops)]
-        self.buses = [Bus(i, nstops) for i in range(nbuses)]
-        self.nstops = nstops
+    def __init__(self, nbuses=4, headway=15, overtaking_allowed=False, travel_time_dist=[], passenger_arrival_rate=[0.3, 0.3, 0.3,0.3],
+                 dest_prob_matrix = []):
+        self.nstops = len(passenger_arrival_rate)
+        self.travel_time_dist = travel_time_dist
+        self.passenger_arrival_rate = passenger_arrival_rate
+        self.dest_prob_matrix = dest_prob_matrix
+        self.stops = [BusStop(i, passenger_arrival_rate=rate, dest_prob=dest_prob_matrix[i])
+                      for i, rate in enumerate(passenger_arrival_rate)]
+
+        self.bus_lanes = [BusLane(a, from_stop=a, to_stop=(a + 1) % self.nstops,
+                                  overtaking_allowed=overtaking_allowed, travel_time_dist=tt)
+                          for a, tt in enumerate(self.travel_time_dist)]
+        self.buses = [Bus(i, self.nstops) for i in range(nbuses)]
+
         self.headway = min(headway, 60/nbuses)
 
 
@@ -157,7 +171,7 @@ class TransitSystem:
             stop.passengers_waiting = 0 # All passengers get in bus
             total_boarded = n_board
 
-        destination_dict = stop.passenger_destinations(n_board, total_stops=self.nstops)
+        destination_dict = stop.passenger_destinations(n_board)
         # Adding new passengers to bus dict containing stop_id and existing passengers getting down at that stop
         for k in destination_dict:
             bus.passengers_onboard[k] = bus.passengers_onboard[k] + destination_dict[k]
@@ -204,17 +218,18 @@ class TransitSystem:
 
 
 def draw_histogram(num_bunch_list, title, color='#c91829'):
+    plt.rcParams["figure.dpi"] = 600
     plt.style.use('fivethirtyeight')
     plt.hist(num_bunch_list, alpha=0.8, color=color, edgecolor='black')
     plt.xlabel('Number of bunches')
     plt.ylabel('Frequency')
     plt.title(title)
-    plt.xticks(np.arange(0, 20, step=2.0))
-    plt.rcParams["figure.dpi"] = 600
+    # plt.xticks(np.arange(0, 20, step=2.0))
     plt.show()
 
 
 def draw_lineplot(num_bunch_list, title, color='#c91829'):
+    plt.rcParams["figure.dpi"] = 600
     plt.style.use('fivethirtyeight')
     plt.plot(num_bunch_list, alpha=0.8, color=color, linewidth=1.3)
     plt.axhline(np.mean(num_bunch_list), color='#13294a', linewidth=2.0, alpha=0.85, label='Mean bunches')
@@ -222,17 +237,73 @@ def draw_lineplot(num_bunch_list, title, color='#c91829'):
     plt.ylabel('Number of bunches')
     plt.yticks(np.arange(0, 20, step=2.0))
     plt.title(title)
-    plt.rcParams["figure.dpi"] = 600
     plt.show()
+
+
+def simulate_empirical(icdf: np.ndarray):
+    """ Generate a sample given an inverse cumulative distribution function using the inverse transform method.
+    https://blogs.sas.com/content/iml/2013/07/22/the-inverse-cdf-method.html
+    params:
+    icdf: values of the inverse cdf at equally spaced probability values [0, 1]
+
+    >>> icdf = np.linspace(0, 4, 2048) # icdf for uniform(0, 4)
+    >>> rvs = [simulate_empirical(icdf) for i in range(10000)]
+    >>> min(rvs) >= 0
+    True
+    >>> max(rvs) <= 4
+    True
+    >>> np.abs(np.mean(rvs) - 2) < 1e-1
+    True
+    >>> np.abs(np.median(rvs)- 2) < 1e-1
+    True
+    """
+    grid_size = len(icdf)
+    return icdf[int(np.random.uniform() * grid_size)]
+
+
+def travel_time_callable(icdf):
+    """A callable to simulate a travel time with given inverse cdf whenever called"
+    Uses closure to keep icdf in memory
+
+    >>> icdf = np.linspace(0, 4, 2048) # icdf for uniform(0, 4)
+    >>> fn = travel_time_callable(icdf)
+    >>> rvs = [fn() for i in range(10000)]
+    >>> min(rvs) >= 0
+    True
+    >>> max(rvs) <= 4
+    True
+    >>> np.abs(np.mean(rvs) - 2) < 1e-1
+    True
+    >>> np.abs(np.median(rvs)- 2) < 1e-1
+    True
+    """
+    return lambda: simulate_empirical(icdf)
+
+
 
 
 if __name__ == '__main__':
     mean_bunches = []
     num_of_sims = 1000
     current_sim = 0
-    
+    pass_arrival_rate = [0.88, 0.09, 0.20, 0.63, 0.35, 0.08]
+    dest_prob_matrix = [[0.00, 0.08, 0.19, 0.56,	0.13,	0.04],
+                        [0.35,	0.00,	0.13,	0.40,	0.09,	0.03],
+                        [0.38,	0.06,	0.00,	0.43,	0.10,	0.03],
+                        [0.53,	0.08,	0.20,	0.00,	0.14,	0.04],
+                        [0.36,	0.06,	0.14,	0.41,	0.00,	0.03],
+                        [0.34,	0.05,	0.13,	0.39,	0.09,	0.00]]
+    with open('travel_time_icdfs.json') as f:
+        tt_icdfs = json.load(f)
+
+    tt_dists = [travel_time_callable(icdf) for icdf in tt_icdfs.values()]
+
+
     while current_sim < num_of_sims:
-        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=False)
+        model = TransitSystem(nbuses=6, headway=10, overtaking_allowed=False,
+                              travel_time_dist=tt_dists,
+                              passenger_arrival_rate=pass_arrival_rate,
+                              dest_prob_matrix=dest_prob_matrix)
         model.simulate()
         mean_bunches.append(model.print_stats())
         del model
@@ -244,7 +315,10 @@ if __name__ == '__main__':
     current_sim = 0
 
     while current_sim < num_of_sims:
-        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=True)
+        model = TransitSystem(nbuses=6, headway=10, overtaking_allowed=True,
+                              travel_time_dist=tt_dists,
+                              passenger_arrival_rate=pass_arrival_rate,
+                              dest_prob_matrix=dest_prob_matrix)
         model.simulate()
         mean_bunches.append(model.print_stats())
         del model
