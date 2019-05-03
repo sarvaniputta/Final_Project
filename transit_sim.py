@@ -189,7 +189,11 @@ class TransitSystem:
                 dwell_time = actual_time
             else:
                 time_diff = arrival_time - stop.arrival_times[-1]
-                dwell_time = self.headway if time_diff < self.headway else actual_time
+                dwell_time = min(0.1*self.headway, max(self.headway-time_diff, actual_time))
+
+
+
+                # dwell_time = self.headway if time_diff < self.headway else actual_time
         else:
             dwell_time = actual_time
 
@@ -294,6 +298,59 @@ def travel_time_callable(icdf):
     """
     return lambda: simulate_empirical(icdf)
 
+def simulate_baseline(num_of_sims):
+    current_sim = 0
+    mean_passengers_waiting = []
+    mean_bunches =[]
+    while current_sim < num_of_sims:
+        model = TransitSystem(nbuses=6, headway=10, overtaking_allowed=False, maintain_headway=False,
+                              travel_time_dist=tt_dists,
+                              passenger_arrival_rate=pass_arrival_rate,
+                              dest_prob_matrix=dest_prob_matrix)
+        model.simulate()
+        mean_bunches.append(model.get_stats()['avg_bunches'])
+        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
+        del model
+        current_sim += 1
+    return mean_bunches
+
+
+def simulate_hyp_1(num_of_sims):
+    current_sim = 0
+    mean_bunches = []
+    mean_passengers_waiting = []
+    while current_sim < num_of_sims:
+        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=True, maintain_headway=False,
+                              travel_time_dist=tt_dists,
+                              passenger_arrival_rate=pass_arrival_rate,
+                              dest_prob_matrix=dest_prob_matrix)
+        model.simulate()
+        mean_bunches.append(model.get_stats()['avg_bunches'])
+        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
+        del model
+        current_sim += 1
+    return mean_bunches
+
+def simulate_hyp_2(num_of_sims:int)-> list:
+    """Simulate minimum dwell time scenario by maintaining a minimum headway"""
+    current_sim = 0
+    mean_passengers_waiting = []
+    mean_bunches = []
+    while current_sim < num_of_sims:
+        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=False, maintain_headway=True,
+                              travel_time_dist=tt_dists,
+                              passenger_arrival_rate=pass_arrival_rate,
+                              dest_prob_matrix=dest_prob_matrix)
+        model.simulate()
+        mean_bunches.append(model.get_stats()['avg_bunches'])
+        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
+        del model
+        current_sim += 1
+    return mean_bunches
+
+
+
+
 
 if __name__ == '__main__':
     mean_bunches = []
@@ -312,53 +369,28 @@ if __name__ == '__main__':
 
     tt_dists = [travel_time_callable(icdf) for icdf in tt_icdfs.values()]
 
+
+
+    mean_bunches_baseline = simulate_baseline(num_of_sims)
+
+    mean_bunches_hyp1 = simulate_hyp_1(num_of_sims)
+
+    mean_bunches_hyp2 = simulate_hyp_2(num_of_sims)
+
+
+
     # No reduction technique applied
-    while current_sim < num_of_sims:
-        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=False, maintain_headway=False,
-                              travel_time_dist=tt_dists,
-                              passenger_arrival_rate=pass_arrival_rate,
-                              dest_prob_matrix=dest_prob_matrix)
-        model.simulate()
-        mean_bunches.append(model.get_stats()['avg_bunches'])
-        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
-        del model
-        current_sim += 1
-
-    #draw_histogram(mean_bunches, 'When no reduction technique used(n=1000)')
-    draw_lineplot(mean_bunches, 'When no reduction technique used', mean_passengers_waiting)
-
-    mean_bunches.clear()
-    current_sim = 0
+    draw_histogram(mean_bunches_baseline, 'When no reduction technique used(n=1000)')
+    # draw_lineplot(mean_bunches, 'When no reduction technique used', mean_passengers_waiting)
 
     # Simulation with only overtaking allowed
-    while current_sim < num_of_sims:
-        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=True, maintain_headway=False,
-                              travel_time_dist=tt_dists,
-                              passenger_arrival_rate=pass_arrival_rate,
-                              dest_prob_matrix=dest_prob_matrix)
-        model.simulate()
-        mean_bunches.append(model.get_stats()['avg_bunches'])
-        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
-        del model
-        current_sim += 1
 
-    #draw_histogram(mean_bunches, 'When overtaking allowed (n=1000)', color='#238e7b')
-    draw_lineplot(mean_bunches, 'When overtaking allowed', mean_passengers_waiting, color='#238e7b')
-
-    mean_bunches.clear()
-    current_sim = 0
+    draw_histogram(mean_bunches_hyp1, 'When overtaking allowed (n=1000)', color='#238e7b')
+    # draw_lineplot(mean_bunches, 'When overtaking allowed', mean_passengers_waiting, color='#238e7b')
 
     # Simulation with only maintain_headway allowed
-    while current_sim < num_of_sims:
-        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=False, maintain_headway=True,
-                              travel_time_dist=tt_dists,
-                              passenger_arrival_rate=pass_arrival_rate,
-                              dest_prob_matrix=dest_prob_matrix)
-        model.simulate()
-        mean_bunches.append(model.get_stats()['avg_bunches'])
-        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
-        del model
-        current_sim += 1
 
-    # draw_histogram(mean_bunches, 'When overtaking allowed (n=1000)', color='#238e7b')
-    draw_lineplot(mean_bunches, 'When headway gap maintained', mean_passengers_waiting, color='#dbae58')
+    draw_histogram(mean_bunches_hyp2, 'When overtaking allowed (n=1000)', color='#238e7b')
+    # draw_lineplot(mean_bunches, 'When headway gap maintained', mean_passengers_waiting, color='#dbae58')
+
+print
