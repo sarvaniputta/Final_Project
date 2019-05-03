@@ -32,7 +32,15 @@ import numpy as np
 
 
 class Bus:
-    def __init__(self, bus_id, total_stops, capacity=100, start_stop=None):
+    """ Apart from the Bus ID, the bus class holds information related to stops where passengers will drop,
+    time that it will take to reach next stops, bus capacity, previous stop and trip count.
+
+    >>> bus = Bus(1, 6)
+    >>> bus.passengers_onboard[1] = 10
+    >>> bus.space_available()
+    90
+    """
+    def __init__(self, bus_id: int, total_stops: int, capacity=100, start_stop=None):
         self.id_ = bus_id
         self.capacity = capacity
         self.start_stop = start_stop
@@ -42,30 +50,31 @@ class Bus:
         # particular stop as their destination, initially the number of passengers is 0.
         # Sum of values is the total passengers inside the bus which is 0 initially.
         self.prev_stop = None
-        self.time_for_next_stop = None  # clock time at which bus hits next stop
-        self.trip_count = 0  # counter for the current trip
+        self.time_for_next_stop = None # clock time at which bus hits next stop
+        self.trip_count = 0 # counter for the current trip
 
-    def space_available(self):
+    def space_available(self) -> int:
+        """ For checking the maximum number of passegers that can alight in a bus
+        :return: Space left in the bus """
         return max(0, self.capacity - sum(self.passengers_onboard.values()))
-
-    def board_passengers(self, bus_stop):
-        if self.space_available():
-            self.passengers_onboard.append(bus_stop.passenger_queue.get())
-
-    def alight(self, bus_stop):
-        for passenger in self.passengers_onboard:
-            if passenger.dest == bus_stop.stop_no:
-                self.passengers_onboard.remove(passenger)
-
-    # def travel(self, from_id, to_id, start=None):
-    #     """bus travel times between stops. Assuming it to take 20 min on average with some approxiamtion
-    #     """
-    #     return np.random.triangular(18, 20, 25)
 
 
 class BusStop:
+    """ Class to model a bus stop. Hold stop ID, passenger arrival rate, destination probability values,
+    number of passengers waiting for a bus.
+    Stores time when buses arrive at that stop, and depart, in a list. Keeps a track of queue length before the next
+    bus picks up passengers.
+    The arrival rate list serves as metric to check whether bunching has occurred at that stop.
 
-    def __init__(self, stop_id, passenger_arrival_rate=0.1, dest_prob=None):
+    >>> stop = BusStop(1, dest_prob=[0.00, 0.08, 0.19, 0.56, 0.13, 0.04])
+    >>> stop.passengers_at_stop(10, 20) >= 0
+    True
+    >>> dict_ = stop.passenger_destinations(10) #O is expected as the destination probability is 0 in the list above
+    >>> dict_[0] == 0
+    True
+    """
+
+    def __init__(self, stop_id: int, passenger_arrival_rate=0.1, dest_prob=None):
         self.dest_prob = dest_prob
         self.id_ = stop_id
         self.passenger_arrival_rate = passenger_arrival_rate
@@ -74,13 +83,13 @@ class BusStop:
         self.departure_times = []
         self.queue_history = []
 
-    def passengers_at_stop(self, start, end):
-        """ Existing plus number of new passengers arriving to that bus stop with in a time interval"""
+    def passengers_at_stop(self, start: float, end: float) -> int:
+        """ Returns Existing plus number of new passengers arriving to that bus stop with in a time interval"""
         self.passengers_waiting += np.random.poisson(self.passenger_arrival_rate * (end - start))
         self.queue_history.append(self.passengers_waiting)
         return self.passengers_waiting
 
-    def passenger_destinations(self, num_passengers_boarding):
+    def passenger_destinations(self, num_passengers_boarding: int) -> dict:
         """ Number of passengers getting down in the further bus stops"""
         keys = [stop_id for stop_id in range(len(self.dest_prob)) if stop_id != self.id_]
         dist = np.random.multinomial(num_passengers_boarding, self.dest_prob)
@@ -90,17 +99,36 @@ class BusStop:
 
 
 class BusLane:
-    """Connector between stops that can simulate overtaking if necessary"""
+    """Connector between stops that can simulate overtaking if required.
+    traversal_time() method calculates the overall time it would take to for a bus to reach next stop
+    depending on whether overtaking is enabled or not.
+    travel_time_dist can be provided to simulate travel times for bus in this lane.
+    Buses running on this lane are tracked using buses_on_route list.
+
+    >>> lane = BusLane(1, from_stop=1, to_stop=2)
+    >>> 14 <= lane.traversal_time() <= 18
+    True
+    >>> lane2 = BusLane(1, from_stop=1, to_stop=2)
+    >>> bus1, bus2 = Bus(2, 6), Bus(3, 6)
+    >>> bus1.time_for_next_stop, bus2.time_for_next_stop = 18, 16
+    >>> lane2.buses_on_route += [bus1, bus2]
+    >>> lane2.traversal_time(0) > 18
+    True
+    """
 
     def __init__(self, id_, from_stop=0, to_stop=1, overtaking_allowed=False, travel_time_dist=None):
-        self.buses_on_route = []  # contains buses which are traversing this lane right now
+        self.buses_on_route = [] # contains buses which are traversing this lane right now
         self.from_stop = from_stop
         self.to_stop = to_stop
         self.overtaking_allowed = overtaking_allowed
         self.travel_time_dist = travel_time_dist
         self.id = id_
 
-    def traversal_time(self, start_time=None):
+    def traversal_time(self, start_time=None) -> float:
+        """ Calculates the simulated time it would take for a bus to travel in a lane
+        If overtaking is disabled, the travel time is 0.5 minutes more for the faster bus
+        than the travel time for slowest bus in the same route if one exists. The faster bus would bunch with the
+        slower one."""
         if self.travel_time_dist:
             potential_travel_time = self.travel_time_dist()
         else:
@@ -240,7 +268,6 @@ class TransitSystem:
         True
         >>> stats['avg_passenger_waiting']>0
         True
-
         """
 
         bunches = []
@@ -373,22 +400,18 @@ def test_hypothesis(num_of_sims: int = 1000, overtaking_allowed: bool = False, m
 
 
 if __name__ == '__main__':
-    mean_bunches_baseline, mean_pass_list = test_hypothesis()
-
-    mean_bunches_hyp1, mean_pass_list1 = test_hypothesis(overtaking_allowed=True)
-
-    mean_bunches_hyp2, mean_pass_list2 = test_hypothesis(maintain_headway=True)
-
-    mean_bunches_hyp3, mean_pass_list3 = test_hypothesis(overtaking_allowed=True, maintain_headway=True)
-
     # No reduction technique applied
+    mean_bunches_baseline, mean_pass_list = test_hypothesis()
     draw_lineplot(mean_bunches_baseline, mean_pass_list, 'When no reduction technique used')
 
     # Simulation with only overtaking allowed
+    mean_bunches_hyp1, mean_pass_list1 = test_hypothesis(overtaking_allowed=True)
     draw_lineplot(mean_bunches_hyp1, mean_pass_list1, 'When overtaking allowed', color='#000099')
 
     # Simulation with only maintain_headway allowed
+    mean_bunches_hyp2, mean_pass_list2 = test_hypothesis(maintain_headway=True)
     draw_lineplot(mean_bunches_hyp2, mean_pass_list2, 'When headway gap maintained', color='#dbae58')
 
     # Simulation with both techniques applied
+    mean_bunches_hyp3, mean_pass_list3 = test_hypothesis(overtaking_allowed=True, maintain_headway=True)
     draw_lineplot(mean_bunches_hyp3, mean_pass_list3, 'Both combined', color='#238e7b')
