@@ -33,7 +33,7 @@ import json
 
 class Bus:
 
-    def __init__(self, bus_id, total_stops, capacity=500, start_stop=None):
+    def __init__(self, bus_id, total_stops, capacity=100, start_stop=None):
         self.id_ = bus_id
         self.capacity = capacity
         self.start_stop = start_stop
@@ -119,7 +119,7 @@ class BusLane:
 class TransitSystem:
 
     def __init__(self, nbuses=4, headway=15, overtaking_allowed=False, travel_time_dist=[], passenger_arrival_rate=[0.3, 0.3, 0.3,0.3],
-                 dest_prob_matrix = []):
+                 dest_prob_matrix = [], maintain_headway=False):
         self.nstops = len(passenger_arrival_rate)
         self.travel_time_dist = travel_time_dist
         self.passenger_arrival_rate = passenger_arrival_rate
@@ -133,7 +133,7 @@ class TransitSystem:
         self.buses = [Bus(i, self.nstops) for i in range(nbuses)]
 
         self.headway = min(headway, 60/nbuses)
-
+        self.maintain_headway = maintain_headway
 
     @staticmethod
     def dwell(passengers_board, passengers_alight):
@@ -180,7 +180,18 @@ class TransitSystem:
         bus.passengers_onboard[stop.id_] = 0
 
         # time taken to alight and onboard these passengers
-        dwell_time = self.dwell(total_boarded, n_alight)
+        #dwell_time = self.dwell(total_boarded, n_alight)
+        actual_time = self.dwell(total_boarded, n_alight)
+        # If maintain_headway is enabled, whenever the inter-arrival time is less than headway gap,
+        # the following bus will wait at the stop to restore the headway gap.
+        if self.maintain_headway:
+            if not stop.arrival_times:
+                dwell_time = actual_time
+            else:
+                time_diff = arrival_time - stop.arrival_times[-1]
+                dwell_time = self.headway if time_diff < self.headway else actual_time
+        else:
+            dwell_time = actual_time
 
         # update arrival time list at stop
         stop.arrival_times.append(arrival_time)
@@ -207,18 +218,20 @@ class TransitSystem:
             to_stop = self.stops[(earliest_event_bus.prev_stop + 1) % self.nstops]
             self.arrive(earliest_event_bus, to_stop, earliest_event_bus.time_for_next_stop)
 
-    def print_stats(self):
+    def get_stats(self):
         bunches = []
+        num_passengers = []
         for stop in self.stops:
             arrival_times = np.array(stop.arrival_times)
             bus_time_diff = np.diff(arrival_times)
             num_bunch_events = np.count_nonzero(bus_time_diff <= 2.0)
             bunches.append(num_bunch_events)
-        return np.mean(bunches)
+            num_passengers.append(stop.passengers_waiting)
+        return {'avg_bunches': np.mean(bunches), 'avg_passenger_waiting': np.mean(num_passengers)}
 
 
 def draw_histogram(num_bunch_list, title, color='#c91829'):
-    plt.rcParams["figure.dpi"] = 600
+    plt.rcParams["figure.dpi"] = 200
     plt.style.use('fivethirtyeight')
     plt.hist(num_bunch_list, alpha=0.8, color=color, edgecolor='black')
     plt.xlabel('Number of bunches')
@@ -228,15 +241,17 @@ def draw_histogram(num_bunch_list, title, color='#c91829'):
     plt.show()
 
 
-def draw_lineplot(num_bunch_list, title, color='#c91829'):
-    plt.rcParams["figure.dpi"] = 600
+def draw_lineplot(num_bunch_list, title, num_pass_waiting, color='#c91829'):
+    plt.rcParams["figure.dpi"] = 200
     plt.style.use('fivethirtyeight')
     plt.plot(num_bunch_list, alpha=0.8, color=color, linewidth=1.3)
     plt.axhline(np.mean(num_bunch_list), color='#13294a', linewidth=2.0, alpha=0.85, label='Mean bunches')
     plt.xlabel('Simulation number')
     plt.ylabel('Number of bunches')
-    plt.yticks(np.arange(0, 20, step=2.0))
+    #plt.yticks(np.arange(0, 28, step=2.0))
     plt.title(title)
+    plt.text(0.05, 0.95, 'Avg. # of passengers waiting = ' + str(np.mean(num_pass_waiting).round(2)),
+             fontsize=14, transform=plt.gcf().transFigure)
     plt.show()
 
 
@@ -280,10 +295,9 @@ def travel_time_callable(icdf):
     return lambda: simulate_empirical(icdf)
 
 
-
-
 if __name__ == '__main__':
     mean_bunches = []
+    mean_passengers_waiting = []
     num_of_sims = 1000
     current_sim = 0
     pass_arrival_rate = [0.88, 0.09, 0.20, 0.63, 0.35, 0.08]
@@ -298,31 +312,53 @@ if __name__ == '__main__':
 
     tt_dists = [travel_time_callable(icdf) for icdf in tt_icdfs.values()]
 
-
+    # No reduction technique applied
     while current_sim < num_of_sims:
-        model = TransitSystem(nbuses=6, headway=10, overtaking_allowed=False,
+        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=False, maintain_headway=False,
                               travel_time_dist=tt_dists,
                               passenger_arrival_rate=pass_arrival_rate,
                               dest_prob_matrix=dest_prob_matrix)
         model.simulate()
-        mean_bunches.append(model.print_stats())
+        mean_bunches.append(model.get_stats()['avg_bunches'])
+        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
         del model
         current_sim += 1
-    draw_histogram(mean_bunches, 'When no reduction technique used(n=1000)')
-    draw_lineplot(mean_bunches, 'When no reduction technique used')
+
+    #draw_histogram(mean_bunches, 'When no reduction technique used(n=1000)')
+    draw_lineplot(mean_bunches, 'When no reduction technique used', mean_passengers_waiting)
 
     mean_bunches.clear()
     current_sim = 0
 
+    # Simulation with only overtaking allowed
     while current_sim < num_of_sims:
-        model = TransitSystem(nbuses=6, headway=10, overtaking_allowed=True,
+        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=True, maintain_headway=False,
                               travel_time_dist=tt_dists,
                               passenger_arrival_rate=pass_arrival_rate,
                               dest_prob_matrix=dest_prob_matrix)
         model.simulate()
-        mean_bunches.append(model.print_stats())
+        mean_bunches.append(model.get_stats()['avg_bunches'])
+        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
         del model
         current_sim += 1
 
-    draw_histogram(mean_bunches, 'When overtaking allowed (n=1000)', color='#238e7b')
-    draw_lineplot(mean_bunches, 'When overtaking allowed', color='#238e7b')
+    #draw_histogram(mean_bunches, 'When overtaking allowed (n=1000)', color='#238e7b')
+    draw_lineplot(mean_bunches, 'When overtaking allowed', mean_passengers_waiting, color='#238e7b')
+
+    mean_bunches.clear()
+    current_sim = 0
+
+    # Simulation with only maintain_headway allowed
+    while current_sim < num_of_sims:
+        model = TransitSystem(nbuses=4, headway=10, overtaking_allowed=False, maintain_headway=True,
+                              travel_time_dist=tt_dists,
+                              passenger_arrival_rate=pass_arrival_rate,
+                              dest_prob_matrix=dest_prob_matrix)
+        model.simulate()
+        mean_bunches.append(model.get_stats()['avg_bunches'])
+        mean_passengers_waiting.append(model.get_stats()['avg_passenger_waiting'])
+        del model
+        current_sim += 1
+
+    # draw_histogram(mean_bunches, 'When overtaking allowed (n=1000)', color='#238e7b')
+    draw_lineplot(mean_bunches, 'When headway gap maintained', mean_passengers_waiting, color='#dbae58')
