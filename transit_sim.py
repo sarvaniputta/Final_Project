@@ -55,6 +55,7 @@ class Bus:
 
     def space_available(self) -> int:
         """ For checking the maximum number of passegers that can alight in a bus
+
         :return: Space left in the bus """
         return max(0, self.capacity - sum(self.passengers_onboard.values()))
 
@@ -84,13 +85,22 @@ class BusStop:
         self.queue_history = []
 
     def passengers_at_stop(self, start: float, end: float) -> int:
-        """ Returns Existing plus number of new passengers arriving to that bus stop with in a time interval"""
+        """ Returns Existing plus number of new passengers arriving to that bus stop with in a time interval
+
+        :param start: start time in minutes
+        :param end: end time in minutes
+        :return: Number of new passengers that arrived in that time interval
+        """
         self.passengers_waiting += np.random.poisson(self.passenger_arrival_rate * (end - start))
         self.queue_history.append(self.passengers_waiting)
         return self.passengers_waiting
 
     def passenger_destinations(self, num_passengers_boarding: int) -> dict:
-        """ Number of passengers getting down in the further bus stops"""
+        """ Number of passengers getting down in the further bus stops
+
+        :param num_passengers_boarding: Count of passengers that can get on-board
+        :return: dict containing stop ids as keys and number of passengers getting down at those stops as values
+        """
         keys = [stop_id for stop_id in range(len(self.dest_prob)) if stop_id != self.id_]
         dist = np.random.multinomial(num_passengers_boarding, self.dest_prob)
         # all destinations equally likely
@@ -112,7 +122,7 @@ class BusLane:
     >>> bus1, bus2 = Bus(2, 6), Bus(3, 6)
     >>> bus1.time_for_next_stop, bus2.time_for_next_stop = 18, 16
     >>> lane2.buses_on_route += [bus1, bus2]
-    >>> lane2.traversal_time(0) > 18
+    >>> lane2.traversal_time(0) > 18 # Time should be more than the slower bus
     True
     """
 
@@ -128,7 +138,11 @@ class BusLane:
         """ Calculates the simulated time it would take for a bus to travel in a lane
         If overtaking is disabled, the travel time is 0.5 minutes more for the faster bus
         than the travel time for slowest bus in the same route if one exists. The faster bus would bunch with the
-        slower one."""
+        slower one as it cannot overtake it.
+
+        :param start_time: time when the bus enters the lane.
+        :return: time required to travel in this lane.
+        """
         if self.travel_time_dist:
             potential_travel_time = self.travel_time_dist()
         else:
@@ -145,6 +159,23 @@ class BusLane:
 
 
 class TransitSystem:
+    """ An environment which initializes stops, lanes, buses, stochastic parameters required for running the simulation
+    based on specific distribution. The class allows to simulate the environment in an event driven fashion where
+    dwell time, arrival times, an travel times to next stop can be computed.
+
+    The arrive() method takes care of on-boaring and alighting passengers keeping bus capacity into consideration.
+    Based on the number of passengers, and/or reduction technique applied, dwell time is calculated, and bus is
+    moved to next stop.
+
+    >>> model = TransitSystem(nbuses=1)
+    >>> model.dwell(10, 10) >= 1.0 # Should take atleast 1 min for 20 passengers to alight and board in
+    True
+    >>> for bus in model.buses:
+    ...     model.arrive(bus, model.stops[0], arrival_time=bus.id_ * model.headway)
+    >>> all([len(s.arrival_times)<=4  for s in model.stops])
+    True
+    >>>
+    """
 
     def __init__(self, nbuses=4, headway=15, overtaking_allowed=False, travel_time_dist=[lambda: 16] * 4,
                  passenger_arrival_rate=[0.3, 0.3, 0.3, 0.3],
@@ -165,11 +196,29 @@ class TransitSystem:
         self.maintain_headway = maintain_headway
 
     @staticmethod
-    def dwell(passengers_board, passengers_alight):
-        """Total dwell time at each stop. Assuming it to be 0.1min for onboarding and alighting"""
+    def dwell(passengers_board: float, passengers_alight: float) -> float:
+        """ Total dwell time at each stop. Assuming it to be 0.05min for one passenger and adding a
+        uniform positive random noise.
+
+        :param passengers_board: Count of passengers getting on-board from a stop
+        :param passengers_alight: Count of passengers getting down at a stop
+        :return: total dwell time
+        """
         return ((passengers_board + passengers_alight) * 0.05) + np.random.uniform(0, 0.1)
 
-    def arrive(self, bus, stop: BusStop, arrival_time):
+    def arrive(self, bus: Bus, stop: BusStop, arrival_time: float):
+        """ Generates realizations of the various random parameters and uses these to simulate bus movement.
+        Using this logic, the simulation can fast forward till the time a bus reaches a stop at which point
+        the time and other data is recorded and new realizations are generated for onward travel.
+
+        Handles on-boaring and alighting passengers keeping bus capacity into consideration.
+        Based on the number of passengers, and/or reduction technique applied, dwell time is calculated, and bus is
+        moved to next stop.
+
+        :param bus: Bus instance that arrives at a stop
+        :param stop: Stop where a bus arrives
+        :param arrival_time: time of arrival
+        """
         # pop the bus from the corresponding bus_lane
         for bus_lane in self.bus_lanes:
             if bus_lane.to_stop == stop.id_:
@@ -211,16 +260,17 @@ class TransitSystem:
         # time taken to alight and onboard these passengers
         # dwell_time = self.dwell(total_boarded, n_alight)
         actual_time = self.dwell(total_boarded, n_alight)
+
         # If maintain_headway is enabled, whenever the inter-arrival time is less than headway gap,
         # the following bus will wait at the stop to restore the headway gap.
         if self.maintain_headway:
-            if not stop.arrival_times:
+            if not stop.arrival_times: # First bus to arrive at that stop
                 dwell_time = actual_time
             else:
                 time_diff = arrival_time - stop.arrival_times[-1]
+                # Ensure that bus waits for 10% of headway time at that stop or for difference between
+                # current headway time and intended headway time, whichever is lower.
                 dwell_time = min(0.1 * self.headway, max(self.headway - time_diff, actual_time))
-
-                # dwell_time = self.headway if time_diff < self.headway else actual_time
         else:
             dwell_time = actual_time
 
@@ -230,22 +280,24 @@ class TransitSystem:
         bus.prev_stop = stop.id_
         self.travel_to_next_stop(bus, from_stop=stop, start_time=arrival_time + dwell_time)
 
-    def travel_to_next_stop(self, bus, from_stop, start_time):
+    def travel_to_next_stop(self, bus: Bus, from_stop: BusStop, start_time):
+        """ Add bus to next bus lane, calculate travel time in that lane and add to that bus travel time list.
+
+        :param bus: Instance of bus which need to be moved to next stop
+        :param from_stop: departure stop
+        :param start_time: travel start time from current stop
+        """
         bus_lane = self.bus_lanes[from_stop.id_]
         potential_travel_time = bus_lane.traversal_time(start_time)  # takes care of overtaking as configured
         bus.time_for_next_stop = start_time + potential_travel_time
         bus_lane.buses_on_route.append(bus)
 
     def simulate(self, max_trips=10):
-
         """ Run simulations until 1 bus in the system completes max trips.
         >>> model = TransitSystem(nbuses=1)
         >>> model.simulate(max_trips=4) # with one trip no bunches should occur
         >>> all([len(s.arrival_times)<=4  for s in model.stops])
         True
-
-
-
         """
         # start simulation by making buses go to stop 0 in headway increments
         for bus in self.buses:
