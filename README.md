@@ -35,7 +35,7 @@ After simulating the first scenario, we observed that the bunching reduced by al
 After simulating the second scenario, we observed that the percentage reduction in bunching was observed to be around 13% against the baseline whereas the reduction in average length of the passenger queue was around 33% against the baseline. 
 
 **Hypothesis 3:**
-<<<<<<< HEAD
+
 After simulating the third scenario, we observed it's behaviour to be almost similar to that of the first scenario i.e. overtaking a delayed bus. The percentage reduction in bunching was slightly higher as compared to scenario 1, around 68% against the baseline. The percentage reduction in average queue length was observed to be 53% against the baseline. 
 
 After simulating the third scenario, we observed the percentage reduction in bunching was slightly better as compared to scenario 1, around 68% against the baseline. The percentage reduction in average queue length was observed to be 53% against the baseline. 
@@ -44,23 +44,23 @@ The aggregate summary of the simulations have been tabulated below:
 
 
 
->     +------------------+----------+--------------+--------------+--------------+
->     |    Parameters    | Baseline | Hypothesis 1 | Hypothesis 2 | Hypothesis 3 |
->     +------------------+----------+--------------+--------------+--------------+
->     |   Mean bunches   |  16.37   |     5.72     |    14.22     |     5.15     |
->     | Avg Queue Length |  12.22   |     5.69     |     8.18     |     5.7      |
->     +------------------+----------+--------------+--------------+--------------+
+     +------------------+----------+--------------+--------------+--------------+
+     |    Parameters    | Baseline | Hypothesis 1 | Hypothesis 2 | Hypothesis 3 |
+     +------------------+----------+--------------+--------------+--------------+
+     |   Mean bunches   |  16.37   |     5.72     |    14.22     |     5.15     |
+     | Avg Queue Length |  12.22   |     5.69     |     8.18     |     5.7      |
+     +------------------+----------+--------------+--------------+--------------+
 
 
 The percentage changes in bunching reduction and average queue length are tabulated below:
 
 
->     +------------------+--------------------------+--------------------------+--------------------------+
->     |    Parameters    | % Reduction Hypothesis 1 | % Reduction Hypothesis 2 | % Reduction Hypothesis 3 |
->     +------------------+--------------------------+--------------------------+--------------------------+
->     |   Mean bunches   |          65.06           |          13.13           |          68.54           |
->     | Avg Queue Length |          53.44           |          33.06           |          53.36           |
->     +------------------+--------------------------+--------------------------+--------------------------+
+     +------------------+--------------------------+--------------------------+--------------------------+
+     |    Parameters    | % Reduction Hypothesis 1 | % Reduction Hypothesis 2 | % Reduction Hypothesis 3 |
+     +------------------+--------------------------+--------------------------+--------------------------+
+     |   Mean bunches   |          65.06           |          13.13           |          68.54           |
+     | Avg Queue Length |          53.44           |          33.06           |          53.36           |
+     +------------------+--------------------------+--------------------------+--------------------------+
 
 
 ## Conclusion
@@ -71,6 +71,9 @@ https://github.com/sarvaniputta/Final_Project
 
 ## References
 [1] Moreira-Matias, L., Gama, J., Mendes-Moreira, J., & Sousa, J.F. (2014). An Incremental Probabilistic Model to Predict Bus Bunching in Real-Time.*IDA*.
+
 [2] https://www.bostonglobe.com/metro/2018/11/25/minutes-for-one-bus-minutes-for-next-why-some-mbta-trips-run-back-back/cURtH3GQKuiwxfLXH5P0UL/story.html
+
 [3] http://www.mbtabackontrack.com/performance/index.html#/download
+
 [4] Pilachowski, J. M. (2009). *An approach to reducing bus bunching* (Doctoral dissertation, UC Berkeley)
