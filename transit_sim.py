@@ -29,6 +29,7 @@ import json
 
 import matplotlib.pyplot as plt
 import numpy as np
+from prettytable import PrettyTable
 
 
 class Bus:
@@ -467,3 +468,39 @@ if __name__ == '__main__':
     # Simulation with both techniques applied
     mean_bunches_hyp3, mean_pass_list3 = test_hypothesis(overtaking_allowed=True, maintain_headway=True)
     draw_lineplot(mean_bunches_hyp3, mean_pass_list3, 'Both combined', color='#238e7b')
+
+    #Analysis and tabulation of the results
+
+    m1 = np.mean(mean_bunches_baseline).round(2)
+    m2 = np.mean(mean_bunches_hyp1).round(2)
+    m3 = np.mean(mean_bunches_hyp2).round(2)
+    m4 = np.mean(mean_bunches_hyp3).round(2)
+
+    n1 = np.mean(mean_pass_list).round(2)
+    n2 = np.mean(mean_pass_list1).round(2)
+    n3 = np.mean(mean_pass_list2).round(2)
+    n4 = np.mean(mean_pass_list3).round(2)
+
+    percent_change_overtake = ((m1 - m2)/m1 * 100).round(2)
+    percent_change_headway = ((m1 - m3)/m1 * 100).round(2)
+    percent_change_both = ((m1 - m4)/m1 * 100).round(2)
+
+    percent_change_queue1 = ((n1 - n2)/n1 * 100).round(2)
+    percent_change_queue2 = ((n1 - n3)/n1 * 100).round(2)
+    percent_change_queue3 = ((n1 - n4) / n1 * 100).round(2)
+
+    table = PrettyTable()
+    table.field_names = ['Parameters', 'Baseline', 'Hypothesis 1', 'Hypothesis 2', 'Hypothesis 3']
+
+    table.add_row(['Mean bunches', m1, m2, m3, m4])
+    table.add_row(['Avg Queue Length', n1, n2, n3, n4])
+    print(table)
+
+    table_change = PrettyTable()
+    table_change.field_names = ['Parameters', '% Reduction Hypothesis 1',
+                                '% Reduction Hypothesis 2', '% Reduction Hypothesis 3']
+
+    table_change.add_row(['Mean bunches', percent_change_overtake, percent_change_headway, percent_change_both])
+    table_change.add_row(['Avg Queue Length', percent_change_queue1, percent_change_queue2, percent_change_queue3])
+
+    print(table_change)
