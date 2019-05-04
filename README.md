@@ -33,7 +33,13 @@ After simulating the second scenario, we observed that allowing the bus to stop 
 **Hypothesis 3:**
 After simulating the third scenario, we observed it's behaviour to be almost similar to that of the first scenario i.e. overtaking a delayed bus. The percentage reduction in bunching was s;ightly higher as compared to scenario 1, around 68% against the baseline. The percentage reduction in average queue length was observed to be 53% against the baseline. 
 
+
+
+
 The results have been tabulated below:
+
+
+
 +------------------+----------+--------------+--------------+--------------+
 |    Parameters    | Baseline | Hypothesis 1 | Hypothesis 2 | Hypothesis 3 |
 +------------------+----------+--------------+--------------+--------------+
@@ -41,7 +47,13 @@ The results have been tabulated below:
 | Avg Queue Length |  12.22   |     5.69     |     8.18     |     5.7      |
 +------------------+----------+--------------+--------------+--------------+
 
+
+
+
 The percentage changes in bunching reduction and average queue length are tabulated below:
+
+
+
 +------------------+--------------------------+--------------------------+--------------------------+
 |    Parameters    | % Reduction Hypothesis 1 | % Reduction Hypothesis 2 | % Reduction Hypothesis 3 |
 +------------------+--------------------------+--------------------------+--------------------------+
