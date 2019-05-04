@@ -9,6 +9,10 @@ IS590PR Spring 2019.
 - Pranay Parmar github: *pranayparmar*
 - Sarvani Putta github: *sarvaniputta*
 
+## Instructions
+Run transit_sim.py
+For data analysis use the ipython notebook and the excel sheet [here](https://gist.github.com/sarvaniputta/ce08254acfe084201f830c6c8edbb44a/raw/08a7c9d6a1cd03746ff977b592b4df0beedb6f94/MBTA_PassengerArrival_Analysis.xlsx)
+
 ## Background
 Bus transit systems often face the problem of bunching where buses that are scheduled to be equally spaced in time tend to arrive at a stop at the same time.
 This is often due to the snowballing effect of delays for a bus which causes it to pick more passengers leading to more delays. The bus behind on the contrary needs to pick up
@@ -31,7 +35,7 @@ After simulating the first scenario, we observed that the bunching reduced by al
 After simulating the second scenario, we observed that allowing the bus to stop for a fixed time at certain stops did not have much effect on reducing the bunching. The percentage reduction in bunching was observed to be around 13% against the baseline whereas the reduction in average length of the queue was observed to be around 33% against the baseline.
 
 **Hypothesis 3:**
-After simulating the third scenario, we observed it's behaviour to be almost similar to that of the first scenario i.e. overtaking a delayed bus. The percentage reduction in bunching was s;ightly higher as compared to scenario 1, around 68% against the baseline. The percentage reduction in average queue length was observed to be 53% against the baseline. 
+After simulating the third scenario, we observed it's behaviour to be almost similar to that of the first scenario i.e. overtaking a delayed bus. The percentage reduction in bunching was slightly higher as compared to scenario 1, around 68% against the baseline. The percentage reduction in average queue length was observed to be 53% against the baseline. 
 
 
 
@@ -40,12 +44,12 @@ The results have been tabulated below:
 
 
 
-+------------------+----------+--------------+--------------+--------------+
-|    Parameters    | Baseline | Hypothesis 1 | Hypothesis 2 | Hypothesis 3 |
-+------------------+----------+--------------+--------------+--------------+
-|   Mean bunches   |  16.37   |     5.72     |    14.22     |     5.15     |
-| Avg Queue Length |  12.22   |     5.69     |     8.18     |     5.7      |
-+------------------+----------+--------------+--------------+--------------+
+>     +------------------+----------+--------------+--------------+--------------+
+>     |    Parameters    | Baseline | Hypothesis 1 | Hypothesis 2 | Hypothesis 3 |
+>     +------------------+----------+--------------+--------------+--------------+
+>     |   Mean bunches   |  16.37   |     5.72     |    14.22     |     5.15     |
+>     | Avg Queue Length |  12.22   |     5.69     |     8.18     |     5.7      |
+>     +------------------+----------+--------------+--------------+--------------+
 
 
 
@@ -54,12 +58,12 @@ The percentage changes in bunching reduction and average queue length are tabula
 
 
 
-+------------------+--------------------------+--------------------------+--------------------------+
-|    Parameters    | % Reduction Hypothesis 1 | % Reduction Hypothesis 2 | % Reduction Hypothesis 3 |
-+------------------+--------------------------+--------------------------+--------------------------+
-|   Mean bunches   |          65.06           |          13.13           |          68.54           |
-| Avg Queue Length |          53.44           |          33.06           |          53.36           |
-+------------------+--------------------------+--------------------------+--------------------------+
+>     +------------------+--------------------------+--------------------------+--------------------------+
+>     |    Parameters    | % Reduction Hypothesis 1 | % Reduction Hypothesis 2 | % Reduction Hypothesis 3 |
+>     +------------------+--------------------------+--------------------------+--------------------------+
+>     |   Mean bunches   |          65.06           |          13.13           |          68.54           |
+>     | Avg Queue Length |          53.44           |          33.06           |          53.36           |
+>     +------------------+--------------------------+--------------------------+--------------------------+
 
 ## Conclusion
 Thus, from our analysis we can conclude by saying that overtaking a bus gives better results (65%) as compared to stopping for a fixed time at certain stops (13%). However, further analysis indicated that when these two hypotheses are combined we get a much better result (68%) in the reduction in number of bunches.
@@ -69,5 +73,7 @@ Thus, from our analysis we can conclude by saying that overtaking a bus gives be
 https://github.com/sarvaniputta/Final_Project
 
 ## References
-https://en.wikipedia.org/wiki/Bus_bunching
-
+[1] Moreira-Matias, L., Gama, J., Mendes-Moreira, J., & Sousa, J.F. (2014). An Incremental Probabilistic Model to Predict Bus Bunching in Real-Time.*IDA*.
+[2] https://www.bostonglobe.com/metro/2018/11/25/minutes-for-one-bus-minutes-for-next-why-some-mbta-trips-run-back-back/cURtH3GQKuiwxfLXH5P0UL/story.html
+[3] http://www.mbtabackontrack.com/performance/index.html#/download
+[4] Pilachowski, J. M. (2009). *An approach to reducing bus bunching* (Doctoral dissertation, UC Berkeley)
