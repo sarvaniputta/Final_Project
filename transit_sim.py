@@ -452,7 +452,7 @@ def test_hypothesis(num_of_sims: int = 1000, overtaking_allowed: bool = False, m
     return mean_bunches, mean_passengers_waiting
 
 
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     # No reduction technique applied
     mean_bunches_baseline, mean_pass_list = test_hypothesis()
     draw_lineplot(mean_bunches_baseline, mean_pass_list, 'When no reduction technique used')
