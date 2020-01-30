@@ -1,13 +1,14 @@
-# Final_Project
+
+## Final_Project
 IS590PR Spring 2019.
 
-## Project Title
-**Bus Transit Simulation with Focus on Bunching Reduction**
+# Bus Transit Simulation with Focus on Bunching Reduction
 
 ## Team
+- Sarvani Putta github: *sarvaniputta*
 - Dhruman Shah github: *dhruman-shah*
 - Pranay Parmar github: *pranayparmar*
-- Sarvani Putta github: *sarvaniputta*
+
 
 ## Instructions
 Run transit_sim.py
